@@ -1,0 +1,111 @@
+# Arduino IDE generated files
+*.tmp
+*.bak
+*.c.*
+*.h.*
+*.o.*
+*.a.*
+*.d.*
+*.ino.cpp
+*.ino.cpp.o
+*.ino.cpp.d
+*.ino.eep
+*.ino.elf
+*.ino.hex
+*.ino.map
+*.ino.sym
+
+# Build directories
+build/
+tmp/
+app/
+
+# Object files
+*.o
+*.obj
+*.elf
+*.hex
+*.bin
+*.srec
+*.lst
+
+# Libraries
+libraries/
+
+# Arduino IDE cache
+.cache/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# IDE files
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Backup files created by the editor
+*~
+.#*
+
+# Compiled binaries
+*.exe
+*.out
+*.app
+
+# Python cache (if using Python scripts for automation)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Node modules (if using Node.js for tooling)
+node_modules/
+npm-debug.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Arduino CLI specific
+arduino-cli.yaml
+arduino-cli.local.yaml
+
+# PlatformIO specific (if using)
+.platformio/
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Serial monitor logs
+serial_monitor.log
+*.serial
+
+# Hardware-specific files
+*.uf2
+*.bin.part
+
+# Test outputs
+test_results/
+coverage/
+
+# CI/CD
+.github/workflows/*.log
