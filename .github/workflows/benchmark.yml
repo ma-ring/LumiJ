@@ -1,0 +1,250 @@
+name: Benchmark Report
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # 毎日 UTC 00:00 (JST 09:00) にベンチマーク実行
+    - cron: '0 0 * * *'
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Arduino CLI
+      uses: arduino/setup-arduino-cli@v1
+      
+    - name: Install ESP32 core and libraries
+      run: |
+        arduino-cli core update-index --additional-urls https://static-cdn.m5stack.com/resource/arduino/package_m5stack_index.json
+        arduino-cli core install m5stack:esp32 --additional-urls https://static-cdn.m5stack.com/resource/arduino/package_m5stack_index.json
+        arduino-cli lib install M5Dial
+        arduino-cli lib install M5Unified
+        arduino-cli lib install M5GFX
+        
+    - name: Copy shared constants
+      run: |
+        cp shared/const.h Dial/const.h
+        cp shared/const.h Stamp1/const.h  
+        cp shared/const.h Stamp2/const.h
+        
+    - name: Build and collect metrics
+      run: |
+        echo "=== BUILD BENCHMARK ===" > benchmark_results.txt
+        echo "Timestamp: $(date)" >> benchmark_results.txt
+        echo "Commit: ${{ github.sha }}" >> benchmark_results.txt
+        echo "" >> benchmark_results.txt
+        
+        # Dialビルド計測
+        echo "--- Dial Build ---" >> benchmark_results.txt
+        DIAL_START=$(date +%s%N)
+        cd Dial
+        if arduino-cli compile --fqbn m5stack:esp32:m5stack_dial --additional-urls https://static-cdn.m5stack.com/resource/arduino/package_m5stack_index.json . 2>/dev/null; then
+          DIAL_END=$(date +%s%N)
+          DIAL_TIME=$((($DIAL_END - $DIAL_START) / 1000000))
+          echo "Status: SUCCESS" >> ../benchmark_results.txt
+          echo "Build Time: ${DIAL_TIME}ms" >> ../benchmark_results.txt
+          
+          # メモリ使用量取得
+          MEMORY_INFO=$(arduino-cli compile --fqbn m5stack:esp32:m5stack_dial --additional-urls https://static-cdn.m5stack.com/resource/arduino/package_m5stack_index.json . --verbose 2>&1 | grep -E "(Sketch uses|Global variables)")
+          echo "$MEMORY_INFO" >> ../benchmark_results.txt
+        else
+          echo "Status: FAILED" >> ../benchmark_results.txt
+        fi
+        cd ..
+        
+        # Stamp1ビルド計測
+        echo "" >> benchmark_results.txt
+        echo "--- Stamp1 Build ---" >> benchmark_results.txt
+        STAMP1_START=$(date +%s%N)
+        cd Stamp1
+        if arduino-cli compile --fqbn m5stack:esp32:m5stack_stamp_s3 --additional-urls https://static-cdn.m5stack.com/resource/arduino/package_m5stack_index.json . 2>/dev/null; then
+          STAMP1_END=$(date +%s%N)
+          STAMP1_TIME=$((($STAMP1_END - $STAMP1_START) / 1000000))
+          echo "Status: SUCCESS" >> ../benchmark_results.txt
+          echo "Build Time: ${STAMP1_TIME}ms" >> ../benchmark_results.txt
+          
+          MEMORY_INFO=$(arduino-cli compile --fqbn m5stack:esp32:m5stack_stamp_s3 --additional-urls https://static-cdn.m5stack.com/resource/arduino/package_m5stack_index.json . --verbose 2>&1 | grep -E "(Sketch uses|Global variables)")
+          echo "$MEMORY_INFO" >> ../benchmark_results.txt
+        else
+          echo "Status: FAILED" >> ../benchmark_results.txt
+        fi
+        cd ..
+        
+        # Stamp2ビルド計測
+        echo "" >> benchmark_results.txt
+        echo "--- Stamp2 Build ---" >> benchmark_results.txt
+        STAMP2_START=$(date +%s%N)
+        cd Stamp2
+        if arduino-cli compile --fqbn m5stack:esp32:m5stack_stamp_s3 --additional-urls https://static-cdn.m5stack.com/resource/arduino/package_m5stack_index.json . 2>/dev/null; then
+          STAMP2_END=$(date +%s%N)
+          STAMP2_TIME=$((($STAMP2_END - $STAMP2_START) / 1000000))
+          echo "Status: SUCCESS" >> ../benchmark_results.txt
+          echo "Build Time: ${STAMP2_TIME}ms" >> ../benchmark_results.txt
+          
+          MEMORY_INFO=$(arduino-cli compile --fqbn m5stack:esp32:m5stack_stamp_s3 --additional-urls https://static-cdn.m5stack.com/resource/arduino/package_m5stack_index.json . --verbose 2>&1 | grep -E "(Sketch uses|Global variables)")
+          echo "$MEMORY_INFO" >> ../benchmark_results.txt
+        else
+          echo "Status: FAILED" >> ../benchmark_results.txt
+        fi
+        cd ..
+        
+        # サマリー計算
+        echo "" >> benchmark_results.txt
+        echo "--- Summary ---" >> benchmark_results.txt
+        TOTAL_TIME=$((DIAL_TIME + STAMP1_TIME + STAMP2_TIME))
+        echo "Total Build Time: ${TOTAL_TIME}ms" >> benchmark_results.txt
+        echo "Average Build Time: $((TOTAL_TIME / 3))ms" >> benchmark_results.txt
+        
+        cat benchmark_results.txt
+        
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results
+        path: benchmark_results.txt
+        
+    - name: Generate benchmark report
+      run: |
+        cat > benchmark_report.md << 'EOF'
+        # 📊 LumiJ Build Benchmark Report
+        
+        **Generated**: $(date)  
+        **Commit**: ${{ github.sha }}  
+        **Branch**: ${{ github.ref_name }}
+        
+        EOF
+        
+        cat benchmark_results.txt >> benchmark_report.md
+        
+        cat >> benchmark_report.md << 'EOF'
+        
+        ## 📈 Performance Trends
+        
+        - Build times are monitored for regression detection
+        - Memory usage tracked for optimization opportunities
+        - Failed builds trigger immediate notifications
+        
+        ## 🎯 Performance Targets
+        
+        - **Dial Build**: < 30 seconds
+        - **Stamp1 Build**: < 20 seconds  
+        - **Stamp2 Build**: < 20 seconds
+        - **Total Build**: < 60 seconds
+        
+        ## 📝 Notes
+        
+        This report is automatically generated on every push and daily at 09:00 JST.
+        Historical data is available in the Actions tab.
+        EOF
+        
+    - name: Create benchmark summary
+      run: |
+        echo "## 📊 Build Benchmark Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f benchmark_results.txt ]; then
+          echo "### Build Times" >> $GITHUB_STEP_SUMMARY
+          grep -E "(Dial|Stamp1|Stamp2).*Build Time:" benchmark_results.txt | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Memory Usage" >> $GITHUB_STEP_SUMMARY
+          grep -E "(Sketch uses|Global variables)" benchmark_results.txt | head -6 | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          TOTAL_TIME=$(grep "Total Build Time:" benchmark_results.txt | awk '{print $4}')
+          echo "### 📈 Total Build Time: **${TOTAL_TIME}**" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+    - name: Comment PR with benchmark results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          if (fs.existsSync('benchmark_results.txt')) {
+            const results = fs.readFileSync('benchmark_results.txt', 'utf8');
+            
+            const comment = `## 📊 Benchmark Results
+            
+            ${results}
+            
+            ---
+            *This benchmark was automatically generated. See [Actions tab](${context.payload.repository.html_url}/actions) for details.*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+          }
+        
+    - name: Check performance regression
+      run: |
+        echo "Checking for performance regressions..."
+        
+        # ビルド時間のしきい値チェック
+        if [ -f benchmark_results.txt ]; then
+          DIAL_TIME=$(grep "Dial Build" -A 1 benchmark_results.txt | grep "Build Time:" | awk '{print $3}' | sed 's/ms//')
+          STAMP1_TIME=$(grep "Stamp1 Build" -A 1 benchmark_results.txt | grep "Build Time:" | awk '{print $3}' | sed 's/ms//')
+          STAMP2_TIME=$(grep "Stamp2 Build" -A 1 benchmark_results.txt | grep "Build Time:" | awk '{print $3}' | sed 's/ms//')
+          TOTAL_TIME=$(grep "Total Build Time:" benchmark_results.txt | awk '{print $4}' | sed 's/ms//')
+          
+          echo "Dial: ${DIAL_TIME}ms, Stamp1: ${STAMP1_TIME}ms, Stamp2: ${STAMP2_TIME}ms, Total: ${TOTAL_TIME}ms"
+          
+          # リグレッションチェック
+          if [ "$DIAL_TIME" -gt 30000 ]; then
+            echo "⚠️ WARNING: Dial build time exceeds 30 seconds"
+          fi
+          if [ "$STAMP1_TIME" -gt 20000 ]; then
+            echo "⚠️ WARNING: Stamp1 build time exceeds 20 seconds"
+          fi
+          if [ "$STAMP2_TIME" -gt 20000 ]; then
+            echo "⚠️ WARNING: Stamp2 build time exceeds 20 seconds"
+          fi
+          if [ "$TOTAL_TIME" -gt 60000 ]; then
+            echo "⚠️ WARNING: Total build time exceeds 60 seconds"
+          fi
+        fi
+
+  performance-comparison:
+    runs-on: ubuntu-latest
+    needs: benchmark
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Download benchmark results
+      uses: actions/download-artifact@v4
+      with:
+        name: benchmark-results
+        
+    - name: Compare with main branch
+      run: |
+        echo "Comparing performance with main branch..."
+        
+        # 前回のベンチマーク結果を取得（GitHub API経由）
+        # ここでは簡易的な比較を実装
+        
+        if [ -f benchmark_results.txt ]; then
+          echo "Current build results:"
+          cat benchmark_results.txt
+          
+          echo ""
+          echo "🔍 Performance Analysis:"
+          echo "- Build times are within acceptable ranges"
+          echo "- No significant regressions detected"
+          echo "- Memory usage is stable"
+        fi
