@@ -2,117 +2,165 @@ name: CI Build Check
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
-  build-dial:
+  build:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Setup Arduino CLI
-      uses: arduino/setup-arduino-cli@v1
-      
-    - name: Install ESP32 core
-      run: |
-        arduino-cli core update-index --additional-urls https://static-cdn.m5stack.com/resource/arduino/package_m5stack_index.json
-        arduino-cli core install m5stack:esp32 --additional-urls https://static-cdn.m5stack.com/resource/arduino/package_m5stack_index.json
-        
-    - name: Install M5Dial library
-      run: |
-        arduino-cli lib install M5Dial
-        arduino-cli lib install M5Unified
-        arduino-cli lib install M5GFX
-        
-    - name: Copy shared constants
-      run: |
-        cp shared/const.h Dial/const.h
-        cp shared/const.h Stamp1/const.h  
-        cp shared/const.h Stamp2/const.h
-        
-    - name: Verify constants consistency
-      run: |
-        echo "Checking const.h consistency..."
-        md5sum Dial/const.h Stamp1/const.h Stamp2/const.h | uniq -c | grep -q "3 " || (echo "ERROR: const.h files are not identical!" && exit 1)
-        echo "✅ All const.h files are identical"
-        
-    - name: Build Dial firmware
-      run: |
-        cd Dial
-        arduino-cli compile --fqbn m5stack:esp32:m5stack_dial --additional-urls https://static-cdn.m5stack.com/resource/arduino/package_m5stack_index.json .
-        
-    - name: Build Stamp1 firmware
-      run: |
-        cd Stamp1
-        arduino-cli compile --fqbn m5stack:esp32:m5stack_stamp_s3 --additional-urls https://static-cdn.m5stack.com/resource/arduino/package_m5stack_index.json .
-        
-    - name: Build Stamp2 firmware
-      run: |
-        cd Stamp2
-        arduino-cli compile --fqbn m5stack:esp32:m5stack_stamp_s3 --additional-urls https://static-cdn.m5stack.com/resource/arduino/package_m5stack_index.json .
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Arduino CLI
+        uses: arduino/setup-arduino-cli@v1
+
+      - name: Install ESP32 core
+        run: |
+          arduino-cli core update-index --additional-urls https://static-cdn.m5stack.com/resource/arduino/package_m5stack_index.json
+          arduino-cli core install m5stack:esp32 --additional-urls https://static-cdn.m5stack.com/resource/arduino/package_m5stack_index.json
+
+      - name: Install libraries
+        run: |
+          arduino-cli lib install M5Dial
+          arduino-cli lib install M5Unified
+          arduino-cli lib install M5GFX
+
+      - name: Validate shared constants
+        run: |
+          echo "Validating shared/const.h..."
+
+          required_defs=(
+            "BAUD_RATE"
+            "LED_COUNT"
+            "DEFAULT_BEAT"
+            "DEFAULT_WAVE"
+            "CMD_KEY_DOWN"
+            "CMD_SET_BEAT"
+            "CMD_SET_WAVE"
+            "CMD_SET_BPM"
+          )
+
+          for def in "${required_defs[@]}"; do
+            if grep -q "#define $def" shared/const.h; then
+              echo "✅ Found $def"
+            else
+              echo "❌ Missing $def in shared/const.h"
+              exit 1
+            fi
+          done
+
+          if grep -q "enum WaveType" shared/const.h; then
+            echo "✅ WaveType enum found"
+          else
+            echo "❌ WaveType enum missing"
+            exit 1
+          fi
+
+          if grep -q "struct LedParam" shared/const.h; then
+            echo "✅ LedParam struct found"
+          else
+            echo "❌ LedParam struct missing"
+            exit 1
+          fi
+
+          echo "✅ Constants validation passed"
+
+      - name: Copy shared constants
+        run: |
+          echo "Copying shared/const.h..."
+          cp shared/const.h Dial/const.h
+          cp shared/const.h Stamp1/const.h
+          cp shared/const.h Stamp2/const.h
+          echo "✅ shared/const.h copied"
+
+      - name: Verify copied constants
+        run: |
+          echo "Checking copied const.h files..."
+
+          cmp -s shared/const.h Dial/const.h || {
+            echo "❌ Dial/const.h differs from shared/const.h"
+            diff -u shared/const.h Dial/const.h || true
+            exit 1
+          }
+
+          cmp -s shared/const.h Stamp1/const.h || {
+            echo "❌ Stamp1/const.h differs from shared/const.h"
+            diff -u shared/const.h Stamp1/const.h || true
+            exit 1
+          }
+
+          cmp -s shared/const.h Stamp2/const.h || {
+            echo "❌ Stamp2/const.h differs from shared/const.h"
+            diff -u shared/const.h Stamp2/const.h || true
+            exit 1
+          }
+
+          echo "✅ All const.h files match shared/const.h"
+
+      - name: Build Dial firmware
+        run: |
+          arduino-cli compile \
+            --fqbn m5stack:esp32:m5stack_dial \
+            --additional-urls https://static-cdn.m5stack.com/resource/arduino/package_m5stack_index.json \
+            Dial
+
+      - name: Build Stamp1 firmware
+        run: |
+          arduino-cli compile \
+            --fqbn m5stack:esp32:m5stack_stamp_s3 \
+            --additional-urls https://static-cdn.m5stack.com/resource/arduino/package_m5stack_index.json \
+            Stamp1
+
+      - name: Build Stamp2 firmware
+        run: |
+          arduino-cli compile \
+            --fqbn m5stack:esp32:m5stack_stamp_s3 \
+            --additional-urls https://static-cdn.m5stack.com/resource/arduino/package_m5stack_index.json \
+            Stamp2
 
   lint-check:
     runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Check Arduino code style
-      run: |
-        echo "Checking code style..."
-        # Basic Arduino style checks
-        find . -name "*.ino" -o -name "*.h" -o -name "*.cpp" | xargs grep -l "using namespace std" && echo "WARNING: using namespace std found" || true
-        find . -name "*.ino" -o -name "*.h" -o -name "*.cpp" | xargs grep -l "TODO\|FIXME\|XXX" && echo "INFO: TODO items found" || true
-        
-    - name: Check for common issues
-      run: |
-        echo "Checking for common Arduino issues..."
-        # Check for proper includes
-        find . -name "*.ino" | xargs grep -q "#include.*const.h" || (echo "ERROR: const.h not included in some .ino files!" && exit 1)
-        echo "✅ All .ino files include const.h"
 
-  constants-check:
-    runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Validate constants file
-      run: |
-        echo "Validating shared/const.h..."
-        
-        # Check for required definitions
-        required_defs=("BAUD_RATE" "LED_COUNT" "DEFAULT_BEAT" "DEFAULT_WAVE" "CMD_KEY_DOWN" "CMD_SET_BEAT" "CMD_SET_WAVE" "CMD_SET_BPM")
-        
-        for def in "${required_defs[@]}"; do
-          if grep -q "#define $def" shared/const.h; then
-            echo "✅ Found $def"
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check Arduino code style
+        run: |
+          echo "Checking code style..."
+
+          if find . \( -name "*.ino" -o -name "*.h" -o -name "*.cpp" \) -print0 | xargs -0 grep -n "using namespace std"; then
+            echo "⚠️ WARNING: using namespace std found"
           else
-            echo "❌ Missing $def in shared/const.h"
+            echo "✅ No using namespace std found"
+          fi
+
+          if find . \( -name "*.ino" -o -name "*.h" -o -name "*.cpp" \) -print0 | xargs -0 grep -n "TODO\|FIXME\|XXX"; then
+            echo "ℹ️ INFO: TODO/FIXME/XXX items found"
+          else
+            echo "✅ No TODO/FIXME/XXX items found"
+          fi
+
+      - name: Check for common issues
+        run: |
+          echo "Checking for common Arduino issues..."
+
+          missing=0
+
+          for file in $(find . -name "*.ino"); do
+            if grep -q '#include.*const.h' "$file"; then
+              echo "✅ $file includes const.h"
+            else
+              echo "❌ $file does not include const.h"
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -ne 0 ]; then
             exit 1
           fi
-        done
-        
-        # Check for required enums
-        if grep -q "enum WaveType" shared/const.h; then
-          echo "✅ WaveType enum found"
-        else
-          echo "❌ WaveType enum missing"
-          exit 1
-        fi
-        
-        # Check for required structures
-        if grep -q "struct LedParam" shared/const.h; then
-          echo "✅ LedParam struct found"
-        else
-          echo "❌ LedParam struct missing"
-          exit 1
-        fi
-        
-        echo "✅ Constants validation passed"
+
+          echo "✅ All .ino files include const.h"

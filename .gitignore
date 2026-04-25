@@ -109,3 +109,9 @@ coverage/
 
 # CI/CD
 .github/workflows/*.log
+
+# Auto-generated const.h files (except shared master)
+Dial/const.h
+Stamp1/const.h
+Stamp2/const.h
+!shared/const.h
