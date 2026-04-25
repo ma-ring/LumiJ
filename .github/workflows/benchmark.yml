@@ -5,9 +5,6 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
-  schedule:
-    # 毎日 UTC 00:00 (JST 09:00) にベンチマーク実行
-    - cron: '0 0 * * *'
 
 jobs:
   benchmark:
@@ -140,7 +137,7 @@ jobs:
         
         ## 📝 Notes
         
-        This report is automatically generated on every push and daily at 09:00 JST.
+        This report is automatically generated on every push.
         Historical data is available in the Actions tab.
         EOF
         

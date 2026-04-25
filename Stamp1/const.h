@@ -96,6 +96,11 @@ const int NUM_VALID_BEATS = 5;
 const char* WAVE_NAMES[] = {"SQUARE", "TRIANGLE", "SINE", "SAW"};
 const int NUM_WAVE_TYPES = 4;
 
+// === Benchmark settings ===
+#define BENCHMARK_ENABLED 1
+#define BENCHMARK_INTERVAL_MS 30000  // 30秒ごとにレポート
+#define MAX_BENCHMARK_SAMPLES 100
+
 // === Data structures ===
 
 // Key matrix state structure
@@ -122,6 +127,44 @@ struct LedParam {
   
   LedParam() : beat(DEFAULT_BEAT), wave(DEFAULT_WAVE) {}
   LedParam(int b, WaveType w) : beat(b), wave(w) {}
+};
+
+// === Benchmark structure ===
+struct FunctionBenchmark {
+  const char* name;
+  unsigned long totalTime;
+  unsigned long maxTime;
+  unsigned long minTime;
+  unsigned long callCount;
+  
+  FunctionBenchmark(const char* funcName) : 
+    name(funcName), totalTime(0), maxTime(0), minTime(ULONG_MAX), callCount(0) {}
+  
+  void addSample(unsigned long duration) {
+    totalTime += duration;
+    if (duration > maxTime) maxTime = duration;
+    if (duration < minTime) minTime = duration;
+    callCount++;
+  }
+  
+  void reset() {
+    totalTime = 0;
+    maxTime = 0;
+    minTime = ULONG_MAX;
+    callCount = 0;
+  }
+  
+  void report() {
+    if (callCount > 0) {
+      Serial.printf("=== %s BENCHMARK ===\n", name);
+      Serial.printf("Calls: %lu\n", callCount);
+      Serial.printf("Average: %lu μs\n", totalTime / callCount);
+      Serial.printf("Min: %lu μs\n", minTime);
+      Serial.printf("Max: %lu μs\n", maxTime);
+      Serial.printf("Total: %lu μs\n", totalTime);
+      Serial.println("========================");
+    }
+  }
 };
 
 #endif // CONST_H
