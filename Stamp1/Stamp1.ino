@@ -79,10 +79,10 @@ void checkKeyButton() {
 
 void sendKeyButtonPress() {
   // Send KeyButton press notification to Dial
-  SerialPort.printf(MSG_KEY_BUTTON_FORMAT);
+  SerialPort.printf(MSG_KEY_BUTTON_FORMAT "\n");
 }
 
 void sendKeyDown(int id) {
   // Send key press notification to Dial
-  SerialPort.printf(MSG_KEY_DOWN_FORMAT, id);
+  SerialPort.printf(MSG_KEY_DOWN_FORMAT "\n", id);
 }

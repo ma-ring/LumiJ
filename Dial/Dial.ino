@@ -1,53 +1,7 @@
 #include "M5Dial.h"
 #include "const.h"
 
-// System constants
-#define BAUD_RATE 115200
-#define LED_COUNT 16
-#define DEFAULT_BEAT 4
-#define DEFAULT_WAVE SQUARE
-
-// UART pins for Stamp1 communication
-#define STAMP1_UART_PORT 1
-#define STAMP1_RX_PIN 13
-#define STAMP1_TX_PIN 15
-
-// UART pins for Stamp2 communication
-#define STAMP2_UART_PORT 2
-#define STAMP2_RX_PIN 2
-#define STAMP2_TX_PIN 1
-
-// Touch zone constants
-#define MODE_BUTTON_ZONE_Y 50    // 上部：モード切替
-#define WAVE_BUTTON_ZONE_Y 100  // 中部：wave選択
-#define BPM_BUTTON_ZONE_Y 150   // 下部：BPM設定
-#define TOUCH_THRESHOLD 30     // タッチ感度
-#define MIN_TOUCH_DURATION 100  // 最小タップ時間(ms)
-
-// Timing constants
-#define DISPLAY_UPDATE_INTERVAL 200    // 画面更新間隔(ms)
-#define BPM_MIN_TAP_INTERVAL 300     // 最小タップ間隔(ms)
-#define BPM_TIMEOUT 5000              // BPMタイムアウト(ms)
-#define COMMUNICATION_TIMEOUT 5000    // 通信タイムアウト(ms)
-#define LOOP_DELAY 50                // メインループ遅延(ms)
-
-// BPM constants
-#define MIN_BPM 40      // 最小BPM
-#define MAX_BPM 240     // 最大BPM
-#define BPM_CALCULATION_INTERVAL 60000  // BPM計算用(ms)
-#define MAX_INTERVAL_FOR_VALID_CHECK 10000  // 有効なタップ間隔の最大値(ms)
-
-// Display constants
-#define DISPLAY_WIDTH_CENTER 160   // 画面幅の中央
-#define DISPLAY_HEIGHT_OFFSET 40  // 画面高さオフセット
-#define TITLE_Y 15               // タイトルY座標
-#define MODE_Y 30               // モード表示Y座標
-#define DEBUG_Y 5               // デバッグ表示Y座標
-#define COMM_ERROR_Y 20         // 通信エラー表示Y座標
-
-// Buffer sizes
-#define COMMAND_BUFFER_SIZE 64    // コマンド受信バッファサイズ
-#define SIMULATION_BUFFER_SIZE 64 // シミュレーションバッファサイズ
+// Use constants from const.h
 
 
 HardwareSerial Stamp1Serial(STAMP1_UART_PORT);
@@ -111,8 +65,8 @@ void setup() {
   Serial.begin(BAUD_RATE);
   
   // Initialize UART after M5.begin()
-  Stamp1Serial.begin(BAUD_RATE, SERIAL_8N1, STAMP1_RX_PIN, STAMP1_TX_PIN);
-  Stamp2Serial.begin(BAUD_RATE, SERIAL_8N1, STAMP2_RX_PIN, STAMP2_TX_PIN);
+  Stamp1Serial.begin(BAUD_RATE, SERIAL_8N1, DIAL_STAMP1_RX_PIN, DIAL_STAMP1_TX_PIN);
+  Stamp2Serial.begin(BAUD_RATE, SERIAL_8N1, DIAL_STAMP2_RX_PIN, DIAL_STAMP2_TX_PIN);
   
   // Initialize LED parameters
   for (int i = 0; i < LED_COUNT; i++) {

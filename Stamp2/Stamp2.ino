@@ -15,25 +15,21 @@ unsigned long beatInterval = 500; // Default beat interval
 int currentBeat = 0;
 int globalBPM = 120;
 
-// K-595D12W Shift register pin configuration
-#define DIO_PIN 11    // DIO (Serial Data Input)
-#define RCLK_PIN 12   // RCLK (Register Clock/Latch)
-#define SCLK_PIN 13   // SCLK (Shift Clock)
-#define SHIFT_DELAY_US 1
+// Use shift register pin definitions from const.h
 
 void setup() {
   Serial.begin(BAUD_RATE);
-  DialSerial.begin(BAUD_RATE, SERIAL_8N1, DIAL_STAMP2_RX_PIN, DIAL_STAMP2_TX_PIN);
+  DialSerial.begin(BAUD_RATE, SERIAL_8N1, STAMP2_DIAL_RX_PIN, STAMP2_DIAL_TX_PIN);
   
   // Initialize shift register pins
-  pinMode(DIO_PIN, OUTPUT);
-  pinMode(RCLK_PIN, OUTPUT);
-  pinMode(SCLK_PIN, OUTPUT);
+  pinMode(STAMP2_DIO_PIN, OUTPUT);
+  pinMode(STAMP2_RCLK_PIN, OUTPUT);
+  pinMode(STAMP2_SCLK_PIN, OUTPUT);
   
   // Set initial state
-  digitalWrite(DIO_PIN, LOW);
-  digitalWrite(SCLK_PIN, LOW);
-  digitalWrite(RCLK_PIN, LOW);
+  digitalWrite(STAMP2_DIO_PIN, LOW);
+  digitalWrite(STAMP2_SCLK_PIN, LOW);
+  digitalWrite(STAMP2_RCLK_PIN, LOW);
   
   // Initialize LED parameters
   for (int i = 0; i < LED_COUNT; i++) {
@@ -179,19 +175,19 @@ bool shouldLightUp(int id, int currentBeat) {
 }
 
 void updateLEDs(uint16_t states) {
-  digitalWrite(RCLK_PIN, LOW);
+  digitalWrite(STAMP2_RCLK_PIN, LOW);
   
   // Shift out 16 bits (MSB first)
   // K-595D12W uses two 74HC595 in series for 16-bit support
   for (int i = LED_COUNT - 1; i >= 0; i--) {
-    digitalWrite(SCLK_PIN, LOW);
-    digitalWrite(DIO_PIN, (states >> i) & 1);
-    digitalWrite(SCLK_PIN, HIGH);
-    delayMicroseconds(SHIFT_DELAY_US);
+    digitalWrite(STAMP2_SCLK_PIN, LOW);
+    digitalWrite(STAMP2_DIO_PIN, (states >> i) & 1);
+    digitalWrite(STAMP2_SCLK_PIN, HIGH);
+    delayMicroseconds(STAMP2_SHIFT_DELAY_US);
   }
   
   // Latch the output
-  digitalWrite(RCLK_PIN, HIGH);
-  delayMicroseconds(SHIFT_DELAY_US);
-  digitalWrite(RCLK_PIN, LOW);
+  digitalWrite(STAMP2_RCLK_PIN, HIGH);
+  delayMicroseconds(STAMP2_SHIFT_DELAY_US);
+  digitalWrite(STAMP2_RCLK_PIN, LOW);
 }

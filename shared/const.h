@@ -16,6 +16,7 @@ enum WaveType {
 // === Communication settings ===
 #define BAUD_RATE 115200
 #define COMMAND_BUFFER_SIZE 64
+#define SIMULATION_BUFFER_SIZE 64
 #define COMMUNICATION_TIMEOUT 5000
 
 // === UART port settings ===
@@ -28,30 +29,41 @@ enum WaveType {
 // Dial -> Stamp1
 #define DIAL_STAMP1_TX_PIN 15
 #define DIAL_STAMP1_RX_PIN 13
-#define STAMP1_DIAL_TX_PIN 2
-#define STAMP1_DIAL_RX_PIN 1
+// Stamp1 -> Dial
+#define STAMP1_DIAL_TX_PIN 13
+#define STAMP1_DIAL_RX_PIN 15
 
 // Dial -> Stamp2
 #define DIAL_STAMP2_TX_PIN 1
 #define DIAL_STAMP2_RX_PIN 2
+// Stamp2 -> Dial
+#define STAMP2_DIAL_TX_PIN 13
+#define STAMP2_DIAL_RX_PIN 15
+
+// Stamp2 Shift register pins
+#define STAMP2_DIO_PIN 11    // DIO (Serial Data Input)
+#define STAMP2_RCLK_PIN 12   // RCLK (Register Clock/Latch)
+#define STAMP2_SCLK_PIN 13   // SCLK (Shift Clock)
+#define STAMP2_SHIFT_DELAY_US 1
 
 // Stamp1 Key Matrix
 #define KEY_MATRIX_ROWS 4
 #define KEY_MATRIX_COLS 4
-#define KEY_BUTTON_PIN 11
+#define KEY_BUTTON_PIN 7
 
 // Stamp1 key matrix pins
-const int STAMP1_ROW_PINS[KEY_MATRIX_ROWS] = {3, 4, 5, 6};
-const int STAMP1_COL_PINS[KEY_MATRIX_COLS] = {7, 8, 9, 10};
+const int STAMP1_COL_PINS[KEY_MATRIX_ROWS] = {8,9,10,11};
+const int STAMP1_ROW_PINS[KEY_MATRIX_COLS] = {12,14,42,46};
 
 // === System settings ===
 #define LED_COUNT 16
 #define MIN_BPM 40
 #define MAX_BPM 240
 #define BPM_CALCULATION_INTERVAL 60000
+#define MAX_INTERVAL_FOR_VALID_CHECK 10000
 
 // === Timing constants ===
-#define DEBOUNCE_DELAY_MS 10
+#define DEBOUNCE_DELAY_MS 10 
 #define SCAN_DELAY_US 10
 #define DISPLAY_UPDATE_INTERVAL 200
 #define BPM_MIN_TAP_INTERVAL 300
