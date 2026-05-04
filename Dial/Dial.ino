@@ -1,8 +1,11 @@
 #include "M5Dial.h"
 #include "const.h"
+#include <M5GFX.h>
 
 // Use constants from const.h
 
+// Canvas for double buffering
+M5Canvas canvas(&M5Dial.Lcd);
 
 HardwareSerial Stamp1Serial(STAMP1_UART_PORT);
 HardwareSerial Stamp2Serial(STAMP2_UART_PORT);
@@ -76,14 +79,19 @@ void setup() {
   
   displayWidthCenter = M5Dial.Lcd.width() / 2;
   
-  // Initialize display with old API
-  M5Dial.Lcd.fillScreen(BLACK);
-  M5Dial.Lcd.setTextSize(2);
-  M5Dial.Lcd.setTextColor(WHITE);
-  M5Dial.Lcd.setTextDatum(middle_center);
-  M5Dial.Lcd.drawString("LumiJ Controller", displayWidthCenter, TITLE_Y + displayHeightOffset);
-  M5Dial.Lcd.setTextSize(1);
-  M5Dial.Lcd.drawString("Initializing...", displayWidthCenter, 120 + displayHeightOffset);
+  // Initialize canvas for double buffering with font settings
+  canvas.createSprite(M5Dial.Lcd.width(), M5Dial.Lcd.height());
+  canvas.setTextDatum(middle_center);
+  canvas.setFreeFont(&fonts::FreeMono9pt7b);
+  
+  // Initial display using canvas
+  canvas.fillScreen(BLACK);
+  canvas.setTextSize(TITLE_FONT_SIZE);
+  canvas.setTextColor(WHITE);
+  canvas.drawString("LumiJ Controller", displayWidthCenter, TITLE_Y + displayHeightOffset);
+  canvas.setTextSize(1);
+  canvas.drawString("Initializing...", displayWidthCenter, 120 + displayHeightOffset);
+  canvas.pushSprite(0, 0);
   
   // Initialize encoder state
   lastEncoderValue = M5Dial.Encoder.read();
@@ -527,66 +535,39 @@ void printSimulationHelp() {
 }
 
 void updateDisplay() {
-  // Use old API like working code
-  M5Dial.Lcd.fillScreen(BLACK);
+  // Use canvas for double buffering while preserving design
+  canvas.fillScreen(BLACK);
   
   // タイトル（中央揃え）
-  M5Dial.Lcd.setTextSize(2);
-  M5Dial.Lcd.setTextColor(WHITE);
-  M5Dial.Lcd.setTextDatum(middle_center);
-  M5Dial.Lcd.drawString("LumiJ Controller", displayWidthCenter, TITLE_Y + displayHeightOffset);
-  
-  // モード表示
-  M5Dial.Lcd.setTextSize(1);
-  M5Dial.Lcd.setTextColor(bpmMode ? YELLOW : CYAN);
-  M5Dial.Lcd.drawString(bpmMode ? "BPM MODE" : "EDIT MODE", displayWidthCenter, MODE_Y + displayHeightOffset);
+  canvas.setTextSize(TITLE_FONT_SIZE);
+  canvas.setTextColor(YELLOW);
+  canvas.drawString("LumiJ", displayWidthCenter, TITLE_Y + displayHeightOffset);
+  canvas.setTextColor(WHITE);
   
   if (bpmMode) {
     // BPMモード表示
-    M5Dial.Lcd.setTextSize(4);
-    M5Dial.Lcd.setTextColor(WHITE);
-    M5Dial.Lcd.drawString(String(currentBPM), displayWidthCenter, 65 + displayHeightOffset);
+    canvas.setTextSize(BPM_MODE_FONT_SIZE);
+    canvas.drawString("BPM:" + String(currentBPM), displayWidthCenter, 75 + displayHeightOffset);
     
     if (tapCount > 0) {
-      M5Dial.Lcd.setTextSize(1);
-      M5Dial.Lcd.setTextColor(CYAN);
-      M5Dial.Lcd.drawString("Taps: " + String(tapCount), displayWidthCenter, 95 + displayHeightOffset);
+      canvas.setTextSize(1);
+      canvas.drawString("Taps:" + String(tapCount), displayWidthCenter, 105 + displayHeightOffset);
     }
     
-    M5Dial.Lcd.setTextSize(1);
-    M5Dial.Lcd.setTextColor(GREEN);
-    M5Dial.Lcd.drawString("Touch zones:", displayWidthCenter, 105 + displayHeightOffset);
-    M5Dial.Lcd.drawString("Top: Mode | Middle/Bottom: BPM", displayWidthCenter, 120 + displayHeightOffset);
   } else {
     // 通常編集モード表示
-    M5Dial.Lcd.setTextSize(4);
-    M5Dial.Lcd.setTextColor(YELLOW);
-    M5Dial.Lcd.drawString("ID: " + String(selectedId), displayWidthCenter, 55 + displayHeightOffset);
+    canvas.setTextSize(1);
+    canvas.drawString("ID: " + String(selectedId), displayWidthCenter, 45 + displayHeightOffset);
     
-    M5Dial.Lcd.setTextSize(2);
-    M5Dial.Lcd.setTextColor(CYAN);
-    M5Dial.Lcd.drawString("Beat: " + String(currentBeatValue), displayWidthCenter, 85 + displayHeightOffset);
+    canvas.setTextSize(EDIT_MODE_FONT_SIZE);
+    canvas.drawString("Beat: " + String(currentBeatValue), displayWidthCenter, 75 + displayHeightOffset);
     
-    M5Dial.Lcd.setTextColor(MAGENTA);
-    M5Dial.Lcd.drawString("Wave: " + String(waveNames[currentWaveValue]), displayWidthCenter, 105 + displayHeightOffset);
-    
-    M5Dial.Lcd.setTextSize(1);
-    M5Dial.Lcd.setTextColor(GREEN);
-    M5Dial.Lcd.drawString("Touch zones:", displayWidthCenter, 125 + displayHeightOffset);
-    M5Dial.Lcd.drawString("Top: Mode | Middle/Bottom: Wave", displayWidthCenter, 140 + displayHeightOffset);
+    canvas.drawString("Wave: " + String(waveNames[currentWaveValue]), displayWidthCenter, 105 + displayHeightOffset);
   }
+
+  canvas.setTextSize(1);
+  canvas.drawString("TAP HERE", displayWidthCenter, 150 + displayHeightOffset);
   
-  // デバッグモード表示
-  if (debugMode) {
-    M5Dial.Lcd.setTextSize(1);
-    M5Dial.Lcd.setTextColor(RED);
-    M5Dial.Lcd.drawString("DEBUG MODE", displayWidthCenter, DEBUG_Y);
-  }
-  
-  // 通信エラー表示
-  if (communicationError) {
-    M5Dial.Lcd.setTextSize(1);
-    M5Dial.Lcd.setTextColor(ORANGE);
-    M5Dial.Lcd.drawString("COMM ERROR", displayWidthCenter, COMM_ERROR_Y);
-  }
+  // Push canvas to display (single transfer for flicker-free rendering)
+  canvas.pushSprite(0, 0);
 }

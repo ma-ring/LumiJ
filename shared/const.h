@@ -79,6 +79,13 @@ const int STAMP1_ROW_PINS[KEY_MATRIX_COLS] = {12,14,42,46};
 #define DEBUG_Y 5
 #define COMM_ERROR_Y 20
 
+// === Font sizes ===
+#define TITLE_FONT_SIZE 2
+#define BPM_MODE_FONT_SIZE 2
+#define EDIT_MODE_FONT_SIZE 1.5
+#define DEBUG_FONT_SIZE 1
+#define COMM_ERROR_FONT_SIZE 1
+
 // === Touch zones ===
 #define MODE_BUTTON_ZONE_Y 50
 #define WAVE_BUTTON_ZONE_Y 100
