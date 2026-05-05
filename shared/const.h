@@ -40,10 +40,10 @@ enum WaveType {
 #define STAMP2_DIAL_TX_PIN 13
 #define STAMP2_DIAL_RX_PIN 15
 
-// Stamp2 Shift register pins
-#define STAMP2_DIO_PIN 11    // DIO (Serial Data Input)
-#define STAMP2_RCLK_PIN 12   // RCLK (Register Clock/Latch)
-#define STAMP2_SCLK_PIN 13   // SCLK (Shift Clock)
+// Stamp2 TPIC6B595 pins (via TXS0108E)
+#define STAMP2_DATA_PIN 11   // DATA (Serial Data Input)
+#define STAMP2_CLK_PIN 12     // CLK (Shift Clock)
+#define STAMP2_LATCH_PIN 13   // LATCH (Register Clock/Latch)
 #define STAMP2_SHIFT_DELAY_US 1
 
 // Stamp1 Key Matrix

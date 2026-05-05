@@ -15,29 +15,33 @@ unsigned long beatInterval = 500; // Default beat interval
 int currentBeat = 0;
 int globalBPM = 120;
 
-// Use shift register pin definitions from const.h
+// LED state for TPIC6B595
+uint16_t ledState = 0;
+
+// Use TPIC6B595 pin definitions from const.h
 
 void setup() {
   Serial.begin(BAUD_RATE);
   DialSerial.begin(BAUD_RATE, SERIAL_8N1, STAMP2_DIAL_RX_PIN, STAMP2_DIAL_TX_PIN);
   
-  // Initialize shift register pins
-  pinMode(STAMP2_DIO_PIN, OUTPUT);
-  pinMode(STAMP2_RCLK_PIN, OUTPUT);
-  pinMode(STAMP2_SCLK_PIN, OUTPUT);
+  // Initialize TPIC6B595 pins
+  pinMode(STAMP2_DATA_PIN, OUTPUT);
+  pinMode(STAMP2_CLK_PIN, OUTPUT);
+  pinMode(STAMP2_LATCH_PIN, OUTPUT);
   
   // Set initial state
-  digitalWrite(STAMP2_DIO_PIN, LOW);
-  digitalWrite(STAMP2_SCLK_PIN, LOW);
-  digitalWrite(STAMP2_RCLK_PIN, LOW);
+  digitalWrite(STAMP2_DATA_PIN, LOW);
+  digitalWrite(STAMP2_CLK_PIN, LOW);
+  digitalWrite(STAMP2_LATCH_PIN, LOW);
   
   // Initialize LED parameters
   for (int i = 0; i < LED_COUNT; i++) {
     ledParams[i] = LedParam();
   }
   
-  // Turn off all LEDs initially
-  updateLEDs(0);
+  // Initialize LED control
+  ledInit();
+  ledAllOff();
   
   Serial.println("Stamp2: LED Controller Initialized");
   Serial.println("Waiting for commands from Dial...");
@@ -174,20 +178,47 @@ bool shouldLightUp(int id, int currentBeat) {
   }
 }
 
+// TPIC6B595 LED Control API
+void ledInit() {
+  // Initialize pins (already done in setup)
+  // Additional initialization if needed
+}
+
+void ledWrite16(uint16_t value) {
+  digitalWrite(STAMP2_LATCH_PIN, LOW);
+
+  // Send high byte first (MSB first for 16-bit)
+  shiftOut(STAMP2_DATA_PIN, STAMP2_CLK_PIN, MSBFIRST, highByte(value));
+  shiftOut(STAMP2_DATA_PIN, STAMP2_CLK_PIN, MSBFIRST, lowByte(value));
+
+  digitalWrite(STAMP2_LATCH_PIN, HIGH);
+  digitalWrite(STAMP2_LATCH_PIN, LOW);
+}
+
+void ledOn(uint8_t index) {
+  if (index >= 16) return;
+  ledState |= (1 << index);
+  ledWrite16(ledState);
+}
+
+void ledOff(uint8_t index) {
+  if (index >= 16) return;
+  ledState &= ~(1 << index);
+  ledWrite16(ledState);
+}
+
+void ledAllOff() {
+  ledState = 0x0000;
+  ledWrite16(ledState);
+}
+
+void ledAllOn() {
+  ledState = 0xFFFF;
+  ledWrite16(ledState);
+}
+
+// Compatibility function - replaces old updateLEDs
 void updateLEDs(uint16_t states) {
-  digitalWrite(STAMP2_RCLK_PIN, LOW);
-  
-  // Shift out 16 bits (MSB first)
-  // K-595D12W uses two 74HC595 in series for 16-bit support
-  for (int i = LED_COUNT - 1; i >= 0; i--) {
-    digitalWrite(STAMP2_SCLK_PIN, LOW);
-    digitalWrite(STAMP2_DIO_PIN, (states >> i) & 1);
-    digitalWrite(STAMP2_SCLK_PIN, HIGH);
-    delayMicroseconds(STAMP2_SHIFT_DELAY_US);
-  }
-  
-  // Latch the output
-  digitalWrite(STAMP2_RCLK_PIN, HIGH);
-  delayMicroseconds(STAMP2_SHIFT_DELAY_US);
-  digitalWrite(STAMP2_RCLK_PIN, LOW);
+  ledState = states;
+  ledWrite16(ledState);
 }
