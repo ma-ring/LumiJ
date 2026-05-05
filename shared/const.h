@@ -55,6 +55,12 @@ enum WaveType {
 const int STAMP1_COL_PINS[KEY_MATRIX_ROWS] = {8,9,10,11};
 const int STAMP1_ROW_PINS[KEY_MATRIX_COLS] = {12,14,42,46};
 
+// Stamp1 TPIC6B595 pins (via TXS0108E)
+#define STAMP1_DATA_PIN 11   // DATA (Serial Data Input)
+#define STAMP1_CLK_PIN 12     // CLK (Shift Clock)
+#define STAMP1_LATCH_PIN 13   // LATCH (Register Clock/Latch)
+#define STAMP1_SHIFT_DELAY_US 1
+
 // === System settings ===
 #define LED_COUNT 16
 #define MIN_BPM 40

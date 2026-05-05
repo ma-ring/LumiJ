@@ -16,12 +16,20 @@ LumiJは3つのESP32マイコンで構成されるLED制御システムで、BPM
 
 ### **Hardware Components**
 ```
-┌─────────────┐    UART    ┌─────────────┐    UART    ┌─────────────┐
-│   M5Dial    │ ◄──────► │  M5Stamp1   │ ◄──────► │  M5Stamp2   │
-│ (Controller)│          │ (Key Matrix)│          │ (LED Driver) │
-│             │          │             │          │ (TPIC6B595×2)│
-└─────────────┘          └─────────────┘          └─────────────┘
-     COM7                     COM8                     COM9
+          ┌─────────────┐
+          │  M5Dial     │    
+          │ (Controller)│
+          └─────┬───────┘
+                │
+         ┌──────┴───────┐
+    UART │              │UART 
+         │              │       
+   ┌─────┴────┐    ┌────┴─────┐ 
+   │M5Stamp1  │    │M5Stamp2  │
+   │(Key      │    │(LED      │ 
+   │ Matrix)  │    │ Driver)  │ 
+   └──────────┘    └──────────┘ 
+     COM8              COM9
 ```
 
 ### **Hardware Specifications**

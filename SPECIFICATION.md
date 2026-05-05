@@ -4,9 +4,9 @@
 
 本システムは3つのデバイスで構成される。
 
-- Stamp1：4x4キーマトリクス入力 + KeyButton専用
+- Stamp1：4x4キーマトリクス入力 + TPIC6B595 LED出力
 - Dial：UI・状態管理・制御・BPM選択
-- Stamp2：LED出力（K-595D12W）専用
+- Stamp2：TPIC6B595 LED出力（16ch制御）
 
 ---
 
@@ -16,8 +16,8 @@
 2. Dial が押されたキーIDを編集対象として選択
 3. Dial のダイアル操作で beat を変更
 4. Dial のタッチ操作で wave を変更
-5. 値が変わるたびに Dial が Stamp2 に送信
-6. Stamp2 が設定を保持し、LEDを発光
+5. 値が変わるたびに Dial が Stamp1 と Stamp2 に送信
+6. Stamp1 と Stamp2 が設定を保持し、それぞれのLEDを発光
 
 ---
 
@@ -84,6 +84,9 @@ BPM ∈ {40, 41, ..., 240}
 - 押下イベント送信
 - KeyButton検出
 - BPMモード切替要求
+- TPIC6B595 LED制御（16ch）
+- パラメータ保持
+- 発光処理
 
 ### Dial
 - 編集対象管理
@@ -91,10 +94,10 @@ BPM ∈ {40, 41, ..., 240}
 - パラメータ変更
 - BPMモード管理
 - タップ間隔検出とBPM計算
-- Stamp2への送信
+- Stamp1とStamp2への送信
 
 ### Stamp2
-- LED制御（K-595D12Wシフトレジスタ使用）
+- TPIC6B595 LED制御（16ch）
 - パラメータ保持
 - 発光処理
 - BPM値によるテンポ制御
@@ -129,7 +132,7 @@ KEY_BUTTON:PRESSED
 
 ---
 
-### Dial → Stamp2
+### Dial → Stamp1 & Stamp2
 
 #### beat設定
 
@@ -169,6 +172,30 @@ SET_BPM:120
 
 ---
 
+## Stamp1 LED制御仕様
+
+### ハードウェア構成
+- M5StampS3 + TXS0108E + TPIC6B595×2
+- 16ch LED出力（キーボードバックライト用）
+- 5Vロジックレベル変換
+
+### TPIC6B595接続
+- DATA: STAMP1_DATA_PIN (GPIO 11)
+- CLK: STAMP1_CLK_PIN (GPIO 12) 
+- LATCH: STAMP1_LATCH_PIN (GPIO 13)
+- 16bitシリアル転送（MSBファースト）
+
+### LED制御API
+```cpp
+void ledWrite16(uint16_t value);
+void ledOn(uint8_t index);
+void ledOff(uint8_t index);
+void ledAllOn();
+void ledAllOff();
+```
+
+---
+
 ## Dial内部状態
 
 ```
@@ -197,14 +224,31 @@ int tap_count;           // タップ回数
 
 ---
 
-## Stamp2内部状態
+## Stamp1内部状態
 
 ```
 led_params[16]
+led_state : uint16_t
 global_bpm : int
 ```
 
 - 各IDの設定を保持
+- TPIC6B595 LED状態管理
+- 一定周期で発光更新
+- BPM値による全体テンポ制御
+
+---
+
+## Stamp2内部状態
+
+```
+led_params[16]
+led_state : uint16_t
+global_bpm : int
+```
+
+- 各IDの設定を保持
+- TPIC6B595 LED状態管理
 - 一定周期で発光更新
 - BPM値による全体テンポ制御
 
