@@ -34,12 +34,12 @@ LumiJは3つのESP32マイコンで構成されるLED制御システムで、BPM
 
 ### **Hardware Specifications**
 - **Dial**: M5Dial with M5Canvas double buffering
-- **Stamp1**: M5StampS3 with 4x4 key matrix
+- **Stamp1**: M5StampS3 + TXS0108E + TPIC6B595×2 (16-LED driver + 4x4 key matrix)
 - **Stamp2**: M5StampS3 + TXS0108E + TPIC6B595×2 (16-LED driver)
 
 ### **Software Architecture**
-- **Dial**: M5Dial制御、M5Canvas表示、タッチインターフェース、BPM計算
-- **Stamp1**: 4x4キーマトリクススキャン、UART通信、キーデバウンス
+- **Dial**: M5Dial制御、M5Canvas表示、タッチインターフェース、BPM計算、双方向LEDデータ送信
+- **Stamp1**: 4x4キーマトリクススキャン、TPIC6B595 LED制御、UART通信、キーデバウンス
 - **Stamp2**: TPIC6B595制御、16-LED波形パターン生成、5Vレベル変換
 
 ---
@@ -69,6 +69,15 @@ LumiJは3つのESP32マイコンで構成されるLED制御システムで、BPM
   - 単一ファイルでの定数管理
   - アップロード時の自動同期
   - 人為的ミスの完全排除
+
+### **4. Stamp1 LED制御拡張**
+- **課題**: キーボードバックライト機能の追加要求
+- **解決策**: Stamp1にTPIC6B595 LED制御を追加、Dialからの双方向送信
+- **成果**:
+  - Stamp1キーボードバックライト実現
+  - DialからStamp1/Stamp2への同時LEDデータ送信
+  - 統一されたLED制御API（ledWrite16, ledOn, ledOff等）
+  - 16ch高出力LED制御（最大500mA/ch）
 
 ### **4. 通信プロトコル改善**
 - **課題**: UARTメッセージの改行コード欠如による通信不安定

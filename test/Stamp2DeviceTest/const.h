@@ -3,15 +3,15 @@
 
 // === Wave types ===
 enum WaveType {
-  WAVE_SQUARE = 0,
-  WAVE_TRIANGLE,
-  WAVE_SINE,
-  WAVE_SAW
+  SQUARE,
+  TRIANGLE,
+  SINE,
+  SAW
 };
 
 // === Default values ===
 #define DEFAULT_BEAT 4
-#define DEFAULT_WAVE WAVE_SQUARE
+#define DEFAULT_WAVE SQUARE
 
 // === Communication settings ===
 #define BAUD_RATE 115200
@@ -111,7 +111,7 @@ const int STAMP1_ROW_PINS[KEY_MATRIX_COLS] = {12,14,42,46};
 #define MSG_SET_WAVE_FORMAT CMD_SET_WAVE "%d%s%s"
 #define MSG_SET_BPM_FORMAT CMD_SET_BPM "%d"
 
-// === Valid beat values (音符の長さ: 1=全音符, 2=二分, 4=四分, 8=八分, 16=十六分) ===
+// === Valid beat values ===
 const int VALID_BEATS[] = {1, 2, 4, 8, 16};
 const int NUM_VALID_BEATS = 5;
 

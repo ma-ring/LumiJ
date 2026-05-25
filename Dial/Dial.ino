@@ -27,14 +27,14 @@ int tapCount = 0;
 unsigned long tapTimes[3] = {0};
 unsigned long lastBPMCalcTime = 0;  // 最後のBPM計算時間
 
-// Communication optimization - track last sent values
-int lastSentBPM = -1;
-int lastSentBeat = -1;
-WaveType lastSentWave = SQUARE;
-
-// Communication error handling
-unsigned long lastCommunicationTime = 0;
+// Communication optimization variables
 bool communicationError = false;
+unsigned long lastCommunicationTime = 0;
+int lastSentBeat = -1;
+WaveType lastSentWave = (WaveType)-1;
+int lastSentBPM = -1;
+int lastSentBeatStamp1 = -1;
+WaveType lastSentWaveStamp1 = (WaveType)-1;
 
 // Wave type names
 const char* waveNames[] = {"SQUARE", "TRIANGLE", "SINE", "SAW"};
@@ -95,6 +95,10 @@ void setup() {
   
   // Initialize encoder state
   lastEncoderValue = M5Dial.Encoder.read();
+
+  // Sync initial BPM to Stamp2 so LEDs start without waiting for user input
+  delay(200);
+  sendBPMToStamp2(currentBPM);
   
   Serial.println("Dial: UI Controller Initialized (Old API with Touch)");
   Serial.println("Debug mode: " + String(debugMode ? "ON" : "OFF"));
@@ -252,8 +256,9 @@ void handleEncoderMove(long encoderValue) {
     // Update local parameter
     ledParams[selectedId].beat = currentBeatValue;
     
-    // Send to Stamp2
+    // Send to Stamp2 and Stamp1
     sendBeatToStamp2(selectedId, currentBeatValue);
+    sendBeatToStamp1(selectedId, currentBeatValue);
     
     Serial.printf("Beat changed: ID=%d, beat=%d\n", selectedId, currentBeatValue);
     updateDisplay();
@@ -359,6 +364,7 @@ void handleTouchButton() {
   ledParams[selectedId].wave = currentWaveValue;
   
   sendWaveToStamp2(selectedId, currentWaveValue);
+  sendWaveToStamp1(selectedId, currentWaveValue);
   
   Serial.printf("Wave changed: ID=%d, wave=%s\n", selectedId, waveNames[currentWaveValue]);
   updateDisplay();
@@ -376,6 +382,18 @@ void sendBeatToStamp2(int id, int beat) {
   }
 }
 
+void sendBeatToStamp1(int id, int beat) {
+  // 値が変更された場合のみ送信
+  if (beat != lastSentBeatStamp1 || id != selectedId) {
+    communicationError = false;
+    lastCommunicationTime = millis();
+    
+    Stamp1Serial.printf("SET_BEAT:%d,%d\n", id, beat);
+    Serial.printf("Sent to Stamp1: SET_BEAT:%d,%d\n", id, beat);
+    lastSentBeatStamp1 = beat;
+  }
+}
+
 void sendWaveToStamp2(int id, WaveType wave) {
   // 値が変更された場合のみ送信
   if (wave != lastSentWave || id != selectedId) {
@@ -385,6 +403,18 @@ void sendWaveToStamp2(int id, WaveType wave) {
     Stamp2Serial.printf("SET_WAVE:%d,%s\n", id, waveNames[wave]);
     Serial.printf("Sent to Stamp2: SET_WAVE:%d,%s\n", id, waveNames[wave]);
     lastSentWave = wave;
+  }
+}
+
+void sendWaveToStamp1(int id, WaveType wave) {
+  // 値が変更された場合のみ送信
+  if (wave != lastSentWaveStamp1 || id != selectedId) {
+    communicationError = false;
+    lastCommunicationTime = millis();
+    
+    Stamp1Serial.printf("SET_WAVE:%d,%s\n", id, waveNames[wave]);
+    Serial.printf("Sent to Stamp1: SET_WAVE:%d,%s\n", id, waveNames[wave]);
+    lastSentWaveStamp1 = wave;
   }
 }
 

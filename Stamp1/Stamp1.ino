@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <HardwareSerial.h>
+#include <math.h>
 #include "const.h"
 
 // UART instance
@@ -8,11 +9,22 @@ HardwareSerial SerialPort(STAMP1_UART_PORT);
 // Key matrix state
 KeyMatrixState keyMatrixState;
 
+// LED parameters for TPIC6B595
+LedParam ledParams[LED_COUNT];
+
+// Timing variables (beatInterval = 4分音符 ms)
+unsigned long beatInterval = 500;
+unsigned long lightingStartMs = 0;
+int globalBPM = 120;
+
+// LED state for TPIC6B595
+uint16_t ledState = 0;
+
 void setup() {
   Serial.begin(BAUD_RATE);
   SerialPort.begin(BAUD_RATE, SERIAL_8N1, STAMP1_DIAL_RX_PIN, STAMP1_DIAL_TX_PIN);
-  
-  // Initialize pins
+
+  // Initialize key matrix pins
   for (int i = 0; i < KEY_MATRIX_ROWS; i++) {
     pinMode(STAMP1_ROW_PINS[i], OUTPUT);
     digitalWrite(STAMP1_ROW_PINS[i], HIGH);
@@ -25,7 +37,17 @@ void setup() {
   // Initialize KeyButton pin
   pinMode(KEY_BUTTON_PIN, INPUT_PULLUP);
   
-  Serial.println("Stamp1: 4x4 Key Matrix Initialized");
+  // Initialize LED parameters
+  for (int i = 0; i < LED_COUNT; i++) {
+    ledParams[i] = LedParam();
+  }
+  
+  // Initialize LED control
+  ledInit();
+  ledAllOff();
+  lightingStartMs = millis();
+
+  Serial.println("Stamp1: 4x4 Key Matrix + TPIC6B595 LED Initialized");
 }
 
 void loop() {
@@ -34,6 +56,12 @@ void loop() {
   
   // Check KeyButton
   checkKeyButton();
+  
+  // Receive commands from Dial
+  receiveCommands();
+  
+  // Update LED lighting
+  updateLEDs();
   
   delay(DEBOUNCE_DELAY_MS);
 }
@@ -85,4 +113,168 @@ void sendKeyButtonPress() {
 void sendKeyDown(int id) {
   // Send key press notification to Dial
   SerialPort.printf(MSG_KEY_DOWN_FORMAT "\n", id);
+}
+
+// TPIC6B595 LED Control API (aligned with Stamp2DeviceTest / Stamp2)
+void ledInit() {
+  pinMode(STAMP1_DATA_PIN, OUTPUT);
+  pinMode(STAMP1_CLK_PIN, OUTPUT);
+  pinMode(STAMP1_LATCH_PIN, OUTPUT);
+
+  digitalWrite(STAMP1_DATA_PIN, LOW);
+  digitalWrite(STAMP1_CLK_PIN, LOW);
+  digitalWrite(STAMP1_LATCH_PIN, LOW);
+}
+
+void ledWrite16(uint16_t value) {
+  digitalWrite(STAMP1_LATCH_PIN, LOW);
+
+  shiftOut(STAMP1_DATA_PIN, STAMP1_CLK_PIN, MSBFIRST, highByte(value));
+  shiftOut(STAMP1_DATA_PIN, STAMP1_CLK_PIN, MSBFIRST, lowByte(value));
+
+  digitalWrite(STAMP1_LATCH_PIN, HIGH);
+  delayMicroseconds(STAMP1_SHIFT_DELAY_US);
+  digitalWrite(STAMP1_LATCH_PIN, LOW);
+}
+
+void ledOn(uint8_t index) {
+  if (index >= 16) return;
+  ledState |= (1 << index);
+  ledWrite16(ledState);
+}
+
+void ledOff(uint8_t index) {
+  if (index >= 16) return;
+  ledState &= ~(1 << index);
+  ledWrite16(ledState);
+}
+
+void ledAllOff() {
+  ledState = 0x0000;
+  ledWrite16(ledState);
+}
+
+void ledAllOn() {
+  ledState = 0xFFFF;
+  ledWrite16(ledState);
+}
+
+unsigned long noteCycleMs(int beatDiv) {
+  if (beatDiv < 1) {
+    beatDiv = DEFAULT_BEAT;
+  }
+  return (beatInterval * 4UL) / (unsigned long)beatDiv;
+}
+
+float channelPhase(int beatDiv) {
+  unsigned long cycle = noteCycleMs(beatDiv);
+  if (cycle < 1) {
+    return 0.0f;
+  }
+  unsigned long elapsed = (millis() - lightingStartMs) % cycle;
+  return (float)elapsed / (float)cycle;
+}
+
+void updateLEDs() {
+  uint16_t newLedState = 0;
+  for (int i = 0; i < LED_COUNT; i++) {
+    if (shouldLightUp(i)) {
+      newLedState |= (1 << i);
+    }
+  }
+
+  if (newLedState != ledState) {
+    ledState = newLedState;
+    ledWrite16(ledState);
+  }
+}
+
+bool shouldLightUp(int id) {
+  LedParam param = ledParams[id];
+  int beat = param.beat;
+  if (beat < 1) {
+    beat = DEFAULT_BEAT;
+  }
+
+  float phase = channelPhase(beat);
+
+  switch (param.wave) {
+    case WAVE_SQUARE:
+    case WAVE_SAW:
+      return phase < 0.5f;
+
+    case WAVE_TRIANGLE: {
+      float level = (phase < 0.5f) ? (phase * 2.0f) : (2.0f - phase * 2.0f);
+      return level >= 0.5f;
+    }
+
+    case WAVE_SINE:
+      return sinf(phase * 2.0f * PI) > 0.0f;
+
+    default:
+      return false;
+  }
+}
+
+void receiveCommands() {
+  if (!SerialPort.available()) return;
+
+  char buffer[COMMAND_BUFFER_SIZE];
+  int len = SerialPort.readBytesUntil('\n', buffer, sizeof(buffer) - 1);
+  buffer[len] = '\0';
+
+  String command(buffer);
+  command.trim();
+
+  Serial.printf("Received from Dial: %s\n", command.c_str());
+
+  if (command.startsWith(CMD_SET_BEAT)) {
+    parseSetBeat(command);
+  } else if (command.startsWith(CMD_SET_WAVE)) {
+    parseSetWave(command);
+  } else if (command.startsWith(CMD_SET_BPM)) {
+    parseSetBPM(command);
+  }
+}
+
+void parseSetBeat(String command) {
+  int separatorPos = command.indexOf(CMD_SEPARATOR);
+  if (separatorPos == -1) return;
+
+  int id = command.substring(strlen(CMD_SET_BEAT), separatorPos).toInt();
+  int beat = command.substring(separatorPos + 1).toInt();
+
+  if (id >= 0 && id < LED_COUNT && beat >= 1 && beat <= 16) {
+    ledParams[id].beat = beat;
+    Serial.printf("Set beat: ID=%d, beat=%d\n", id, beat);
+  }
+}
+
+void parseSetWave(String command) {
+  int separatorPos = command.indexOf(CMD_SEPARATOR);
+  if (separatorPos == -1) return;
+
+  int id = command.substring(strlen(CMD_SET_WAVE), separatorPos).toInt();
+  String waveName = command.substring(separatorPos + 1);
+
+  if (id >= 0 && id < LED_COUNT) {
+    for (int i = 0; i < NUM_WAVE_TYPES; i++) {
+      if (waveName == WAVE_NAMES[i]) {
+        ledParams[id].wave = (WaveType)i;
+        Serial.printf("Set wave: ID=%d, wave=%s\n", id, WAVE_NAMES[i]);
+        break;
+      }
+    }
+  }
+}
+
+void parseSetBPM(String command) {
+  int bpm = command.substring(strlen(CMD_SET_BPM)).toInt();
+
+  if (bpm >= MIN_BPM && bpm <= MAX_BPM) {
+    globalBPM = bpm;
+    beatInterval = 60000 / bpm;
+    lightingStartMs = millis();
+    Serial.printf("Set BPM: %d, quarter=%lu ms\n", globalBPM, beatInterval);
+  }
 }
