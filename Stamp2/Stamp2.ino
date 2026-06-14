@@ -72,7 +72,7 @@ void setup() {
     ledParams[i].wave = DEFAULT_WAVE;
   }
 
-  ledAllOff();
+  ledAllOn();
 
   Serial.println("Stamp2: LED Controller Initialized");
   Serial.println("Waiting for commands from Dial...");
@@ -82,6 +82,10 @@ void loop() {
   receiveCommands();
   updateLighting();
   delay(LOOP_DELAY);
+  //ledAllOn();
+  //delay(1000);
+  //ledAllOff();
+  //delay(1000);
 }
 
 void receiveCommands() {

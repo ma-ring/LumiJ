@@ -19,11 +19,13 @@ int globalBPM = 120;
 
 // LED state for TPIC6B595
 uint16_t ledState = 0;
+bool lightingActive = false;
 
 void setup() {
   Serial.begin(BAUD_RATE);
   SerialPort.begin(BAUD_RATE, SERIAL_8N1, STAMP1_DIAL_RX_PIN, STAMP1_DIAL_TX_PIN);
-
+  // Initialize LED control
+  ledInit();
   // Initialize key matrix pins
   for (int i = 0; i < KEY_MATRIX_ROWS; i++) {
     pinMode(STAMP1_ROW_PINS[i], OUTPUT);
@@ -42,15 +44,20 @@ void setup() {
     ledParams[i] = LedParam();
   }
   
-  // Initialize LED control
-  ledInit();
-  ledAllOff();
-  lightingStartMs = millis();
+  // Initialize LED parameters
+  for (int i = 0; i < LED_COUNT; i++) {
+    ledParams[i].beat = DEFAULT_BEAT;
+    ledParams[i].wave = DEFAULT_WAVE;
+  }
+
+
+  ledAllOn();
 
   Serial.println("Stamp1: 4x4 Key Matrix + TPIC6B595 LED Initialized");
 }
 
 void loop() {
+  /*
   // Scan key matrix
   scanKeys();
   
@@ -61,9 +68,15 @@ void loop() {
   receiveCommands();
   
   // Update LED lighting
-  updateLEDs();
+  updateLighting();
   
   delay(DEBOUNCE_DELAY_MS);
+  */
+  ledWrite16(0xFFFF);
+  delay(1000);
+
+  //ledWrite16(0x0000);
+  delay(1000);
 }
 
 void scanKeys() {
@@ -133,8 +146,6 @@ void ledWrite16(uint16_t value) {
   shiftOut(STAMP1_DATA_PIN, STAMP1_CLK_PIN, MSBFIRST, lowByte(value));
 
   digitalWrite(STAMP1_LATCH_PIN, HIGH);
-  delayMicroseconds(STAMP1_SHIFT_DELAY_US);
-  digitalWrite(STAMP1_LATCH_PIN, LOW);
 }
 
 void ledOn(uint8_t index) {
@@ -159,6 +170,39 @@ void ledAllOn() {
   ledWrite16(ledState);
 }
 
+
+void updateLEDs(uint16_t states) {
+  ledState = states;
+  ledWrite16(ledState);
+}
+
+uint16_t computeLedPattern() {
+  uint16_t pattern = 0;
+  for (int i = 0; i < LED_COUNT; i++) {
+    if (shouldLightUp(i)) {
+      pattern |= (1 << i);
+    }
+  }
+  return pattern;
+}
+
+void writeLedPattern() {
+  uint16_t pattern = computeLedPattern();
+  if (pattern != ledState) {
+    updateLEDs(pattern);
+  }
+}
+
+void startLightingFromBpm() {
+  lightingActive = true;
+  lightingStartMs = millis();
+  ledInit();
+  writeLedPattern();
+  Serial.printf(
+    "Lighting started: pattern=0x%04X quarter=%lu ms beat=%d cycle=%lu ms\n",
+    ledState, beatInterval, DEFAULT_BEAT, noteCycleMs(DEFAULT_BEAT));
+}
+
 unsigned long noteCycleMs(int beatDiv) {
   if (beatDiv < 1) {
     beatDiv = DEFAULT_BEAT;
@@ -175,18 +219,9 @@ float channelPhase(int beatDiv) {
   return (float)elapsed / (float)cycle;
 }
 
-void updateLEDs() {
-  uint16_t newLedState = 0;
-  for (int i = 0; i < LED_COUNT; i++) {
-    if (shouldLightUp(i)) {
-      newLedState |= (1 << i);
-    }
-  }
-
-  if (newLedState != ledState) {
-    ledState = newLedState;
-    ledWrite16(ledState);
-  }
+void updateLighting() {
+  if (!lightingActive) return;
+  writeLedPattern();
 }
 
 bool shouldLightUp(int id) {
@@ -217,23 +252,28 @@ bool shouldLightUp(int id) {
 }
 
 void receiveCommands() {
-  if (!SerialPort.available()) return;
+  while (SerialPort.available()) {
+    char buffer[COMMAND_BUFFER_SIZE];
+    int len = SerialPort.readBytesUntil('\n', buffer, sizeof(buffer) - 1);
+    buffer[len] = '\0';
 
-  char buffer[COMMAND_BUFFER_SIZE];
-  int len = SerialPort.readBytesUntil('\n', buffer, sizeof(buffer) - 1);
-  buffer[len] = '\0';
+    String command(buffer);
+    command.trim();
+    if (command.length() == 0) continue;
 
-  String command(buffer);
-  command.trim();
+    Serial.printf("Received from Dial: %s\n", command.c_str());
 
-  Serial.printf("Received from Dial: %s\n", command.c_str());
+    if (command.startsWith(CMD_SET_BEAT)) {
+      parseSetBeat(command);
+    } else if (command.startsWith(CMD_SET_WAVE)) {
+      parseSetWave(command);
+    } else if (command.startsWith(CMD_SET_BPM)) {
+      parseSetBPM(command);
+    }
 
-  if (command.startsWith(CMD_SET_BEAT)) {
-    parseSetBeat(command);
-  } else if (command.startsWith(CMD_SET_WAVE)) {
-    parseSetWave(command);
-  } else if (command.startsWith(CMD_SET_BPM)) {
-    parseSetBPM(command);
+    if (lightingActive) {
+      writeLedPattern();
+    }
   }
 }
 
@@ -274,7 +314,7 @@ void parseSetBPM(String command) {
   if (bpm >= MIN_BPM && bpm <= MAX_BPM) {
     globalBPM = bpm;
     beatInterval = 60000 / bpm;
-    lightingStartMs = millis();
-    Serial.printf("Set BPM: %d, quarter=%lu ms\n", globalBPM, beatInterval);
+    Serial.printf("Set BPM: %d, beat interval: %lu ms\n", globalBPM, beatInterval);
+    startLightingFromBpm();
   }
 }

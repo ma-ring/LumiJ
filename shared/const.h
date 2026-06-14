@@ -42,21 +42,21 @@ enum WaveType {
 #define STAMP1_DIAL_TX_PIN 13
 #define STAMP1_DIAL_RX_PIN 15
 // Stamp1 key matrix pins
-const int STAMP1_COL_PINS[KEY_MATRIX_ROWS] = {8,9,10,11};
-const int STAMP1_ROW_PINS[KEY_MATRIX_COLS] = {12,14,42,46};
+const int STAMP1_COL_PINS[KEY_MATRIX_COLS] = {12,14,42,46};
+const int STAMP1_ROW_PINS[KEY_MATRIX_ROWS] = {8,9,10,11};
 // Stamp1 TPIC6B595 pins (via TXS0108E)
-#define STAMP1_DATA_PIN 1   // DATA (Serial Data Input)
-#define STAMP1_CLK_PIN 2     // CLK (Shift Clock)
-#define STAMP1_LATCH_PIN 3   // LATCH (Register Clock/Latch)
+#define STAMP1_DATA_PIN 1   // DATA (Serial Data Input) SER_INにつながる
+#define STAMP1_CLK_PIN 3     // CLK (Shift Clock) SRCKにつながる
+#define STAMP1_LATCH_PIN 2   // LATCH (Register Clock/Latch) 
 #define STAMP1_SHIFT_DELAY_US 1
 
 // Stamp2 -> Dial
 #define STAMP2_DIAL_TX_PIN 13
 #define STAMP2_DIAL_RX_PIN 15
 // Stamp2 TPIC6B595 pins (via TXS0108E)
-#define STAMP2_DATA_PIN 8   // DATA (Serial Data Input)
-#define STAMP2_CLK_PIN 9     // CLK (Shift Clock)
-#define STAMP2_LATCH_PIN 10   // LATCH (Register Clock/Latch)
+#define STAMP2_DATA_PIN 2   // DATA (Serial Data Input) SER_INにつながる
+#define STAMP2_CLK_PIN 3     // CLK (Shift Clock) SRCKにつながる
+#define STAMP2_LATCH_PIN 1   // LATCH (Register Clock/Latch) RCKにつながる
 #define STAMP2_SHIFT_DELAY_US 1
 
 // === System settings ===
